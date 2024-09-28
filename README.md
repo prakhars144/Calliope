@@ -1,6 +1,8 @@
 # Visual Novel AI Assistant
 ## Overview
 Visual Novel AI Assistant is an interactive visual novel game platform where users can create their own stories and engage with AI models like ChatGPT. Users take on various roles, and the AI dynamically responds to their choices and queries, making the storytelling experience more immersive and adaptive. The AI (powered by models like GPT-4) assumes the role of various characters in the story, allowing users to interact with it as they progress through the narrative.
+
+
 ![](https://github.com/prakhars144/calliope/blob/main/static/sample.png)
 
 
