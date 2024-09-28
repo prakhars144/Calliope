@@ -28,7 +28,8 @@ The conversation continues, with the AI adjusting its behavior dynamically based
 
 1. Update your OEPN API key in `visual_novel_assistant.py`
 2. Install dependencies using `requirements.txt`
-3. Launch the program using `python .\audio_to_text.py`
+3. Install ffmpeg using chocolatey
+4. Launch the program using `python .\audio_to_text.py`
 
 ## Future plans
 
