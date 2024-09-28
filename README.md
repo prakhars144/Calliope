@@ -17,7 +17,7 @@ The AI is powered by LangChain and OpenAI’s GPT models, and it is capable of:
 
 1. Role-playing: Adapting responses based on its role in the story.
 2. Decision-making: Determining how to react to the player's input and providing next possible actions.
-3. 
+   
 ## Example Workflow
 The user provides a world description:
 
