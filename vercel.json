@@ -2,7 +2,7 @@
     "version": 2,
     "builds": [
         {
-            "src": "src/app.py",
+            "src": "src/main.py",
             "use": "@vercel/python",
             "config": { "maxLambdaSize": "15mb", "runtime": "python3.8" }
         }
@@ -10,7 +10,7 @@
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "src/app.py"
+            "dest": "src/main.py"
         }
     ]
 }
