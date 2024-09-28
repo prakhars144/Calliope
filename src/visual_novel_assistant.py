@@ -4,83 +4,64 @@ from langchain.chat_models import ChatOpenAI
 from pydantic import BaseModel, Field, root_validator
 from langchain.memory import ConversationBufferMemory
 from typing import List
+from utils import get_env_variable
+from base_prompts import VISUAL_NOVEL_PROMPT  # Import the prompt template
 
-# TODO: Get it from environment variable
-OPEN_API_KEY = ""
-MODEL_NAME = "gpt-4o-mini"
 
 class ResponseModel(BaseModel):
     action: str = Field(description="Description of the action to be taken.")
     dialogue: str = Field(description="Dialogue spoken by the character.")
-    next_steps: List[str] = Field(description="Possible next actions available.")
-
-    # Custom validation to ensure 'action' ends with a question mark
-    @root_validator(pre=True)
-    def validate_action(cls, values):
-        action = values.get("action", "")
-        if action == "":
-            raise ValueError("The action must not be empty.")
-        return values
+    facial_expression: str = Field(description="Possible next actions available.")
+    persuation_percentage: str = Field(description="Persuation percentage.")
 
 
 class VisualNovelAssistant:
     def __init__(self):
-        # Initialize the prompt template
-        self.prompt_template = PromptTemplate(
-            template=("You are the owner of a house in a visual novel. "
-                      "A thief (the player) is trying to convince you to let them into the house. The theif will try to manipulate you into believing him."
-                      "Note that you are not aware that the person visting your house has malicious intentions."
-                      "For example, The theif might say that he came to offer that service you booked. Or he might say that he want to fix your pool for free."
-                      "When you first see the player or theif, ask him questions about who is he, why he knocked on your door etc."
-                      "Talk like having a normal interaction with a human."
-                      "Try to role play with him. Ask clarifying questions based on the difficulty. Based on how well the theif responds let him in or deny the entry."
-                      "Here is the world description:\n{world_description}\n"
-                      "Difficulty Level: {difficulty}\n"
-                      "Respond to the thief's query as the owner in the following JSON format:\n"
-                      "{query}\n"
-                      "Expected JSON structure:\n"
-                      "{{\n"
-                      "  \"action\": \"<string describing the action>\",\n"
-                      "  \"dialogue\": \"<string containing what the house owner says>\",\n"
-                      "  \"next_steps\": [\n"
-                      "    \"<string describing next possible actions>\",\n"
-                      "    \"<another possible action>\"\n"
-                      "  ]\n"
-                      "}}\n"),
-            input_variables=["world_description", "difficulty", "query"]
-        )
+        # Load the prompt template from base_prompts
+        self.prompt_template = VISUAL_NOVEL_PROMPT
 
-        self.memory = ConversationBufferMemory()
+        # Initialize the memory to retain conversation history
+        self.memory = ConversationBufferMemory(memory_key="chat_history")
+
         # Initialize the parser
         self.parser = PydanticOutputParser(pydantic_object=ResponseModel)
-        
-        # Initialize the ChatOpenAI model using the correct api_key and model_name
-        self.chat_model = ChatOpenAI(api_key=OPEN_API_KEY, model_name=MODEL_NAME)  # Correct model initialization
 
-    def get_structured_response(self, world_description, difficulty, user_query):
+        # Initialize the ChatOpenAI model using the correct api_key and model_name
+        model_name = get_env_variable("MODEL_NAME", "gpt-4o-mini")
+        open_api_key = get_env_variable("OPEN_API_KEY", "")
+        if not open_api_key.strip():
+            # If open_api_key is empty, raise an exception
+            raise ValueError("OPEN_API_KEY is empty or not set.")
+        self.chat_model = ChatOpenAI(
+            api_key=open_api_key, model_name=model_name, temperature=0.7
+        )
+
+    def get_structured_response(self, difficulty, user_query):
         # Strip inputs for safety
-        world_description = world_description.strip()
         difficulty = difficulty.strip()
         user_query = user_query.strip()
 
-        # Create the full prompt
+        # Retrieve previous chat history from memory
+        chat_history = self.memory.load_memory_variables({}).get("chat_history", "")
+        chat_history = chat_history.strip()
+        # Create the full prompt by including the memory (chat history)
         prompt = self.prompt_template.format(
-            world_description=world_description,
-            difficulty=difficulty,
-            query=user_query
+            difficulty=difficulty, query=user_query, chat_history=chat_history
         )
+
         print("prompt:", prompt)
 
         # Get the response from the model using .predict() (LangChain method)
         response = self.chat_model.predict(prompt)
-        print("response:", response)
 
         # Parse the output using the specified parser
         structured_output = self.parser.parse(response)
 
+        # Update the memory with the current interaction
+        self.memory.save_context({"input": user_query}, {"output": response})
+
         return structured_output
-    
+
     def clear_memory(self):
         # Clear the memory buffer
         self.memory.clear()
-
