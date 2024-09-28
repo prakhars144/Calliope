@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Recorder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .chat-container {
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            margin-top: 20px;
+        }
+        .message {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .message:last-child {
+            border-bottom: none;
+        }
+        .transcription {
+            color: #007BFF; 
+        }
+        .dialogue {
+            color: #555; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Record Audio</h1>
+    <button id="record">Start Recording</button>
+    <button id="stop" disabled>Stop Recording</button>
+
+    <div class="chat-container" id="chat">
+        <!-- Transcriptions will be displayed here -->
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById("record").onclick = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob);
+                audioChunks = [];
+                // Send the audio data to the Python server
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                displayTranscription(result.transcription, result.llm_output.dialogue);
+                
+                audioChunks = [];
+            };
+
+            mediaRecorder.start();
+            document.getElementById("record").disabled = true;
+            document.getElementById("stop").disabled = false;
+        };
+
+        document.getElementById("stop").onclick = () => {
+            mediaRecorder.stop();
+            document.getElementById("record").disabled = false;
+            document.getElementById("stop").disabled = true;
+        };
+
+        function displayTranscription(transcription, dialogue) {
+            const chatContainer = document.getElementById("chat");
+            
+            // Create a message for transcription
+            const transcriptionDiv = document.createElement("div");
+            transcriptionDiv.classList.add("message");
+            transcriptionDiv.innerHTML = `<span class="transcription">Thief:</span> ${transcription}`;
+            
+            // Create a message for dialogue
+            const dialogueDiv = document.createElement("div");
+            dialogueDiv.classList.add("message");
+            dialogueDiv.innerHTML = `<span class="dialogue">House owner:</span> ${dialogue}`;
+            
+            // Append both messages to the chat container
+            chatContainer.appendChild(transcriptionDiv);
+            chatContainer.appendChild(dialogueDiv);
+            
+            // Scroll to the bottom of the chat
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>
